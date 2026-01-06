@@ -1,0 +1,24 @@
+# Bilibili Voice Clone - Requirements
+# For Mac users
+#
+# IMPORTANT: Python 3.11 is required
+
+# Core dependencies
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.24.0
+soundfile>=0.12.0
+
+# IndexTTS-2 (install from source or pip)
+# index-tts
+
+# Audio processing (optional, for better resampling)
+scipy>=1.10.0
+
+# GUI
+PyQt6>=6.5.0
+
+# Audio recording
+sounddevice>=0.4.6
+scipy>=1.11.0
+

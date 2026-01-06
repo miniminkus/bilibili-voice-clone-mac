@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environment
+venv/
+venv311/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+recordings/
+output/
+index-tts/
+checkpoints/
+
+# Audio files (but allow soundbites folder)
+recordings/*.wav
+recordings/*.mp3
+recordings/*.m4a
+output/*.wav
+output/*.mp3
+output/*.m4a
+!soundbites/*.wav
+!soundbites/*.mp3
+!soundbites/*.m4a
+
+# Logs
+*.log
+
+# Temporary files
+.cache/
+tmp/
+temp/
