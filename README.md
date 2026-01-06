@@ -19,7 +19,9 @@ A simple, user-friendly Mac application for voice cloning using Bilibili's Index
 
 ## ⚠️ Important: Microphone Permission
 
-**For the recording feature to work, you must grant microphone permission:**
+**The first time you use the recording feature, macOS will automatically prompt you to grant microphone permission.** Click "OK" to allow access.
+
+If you miss the prompt or need to check/change permissions:
 
 1. Go to **System Settings → Privacy & Security → Microphone**
 2. Enable permission for **Python** or **Terminal** (depending on how you run the app)
