@@ -27,8 +27,9 @@ warnings.filterwarnings("ignore", category=UserWarning)
 try:
     import soundfile as sf
     import numpy as np
+    import torch
 except ImportError:
-    print("Error: soundfile and numpy required. Install with: pip install soundfile numpy")
+    print("Error: soundfile, numpy, and torch required. Install with: pip install soundfile numpy torch")
     sys.exit(1)
 
 # Add index-tts to path if it exists in parent directory
@@ -99,6 +100,26 @@ def load_model(model_dir=None):
         )
     
     config_path = os.path.join(model_dir, "config.yaml")
+    
+    # Detect and log device information
+    print("\n" + "="*60)
+    print("🔍 Device Detection:")
+    print("="*60)
+    
+    if torch.backends.mps.is_available():
+        print("✅ MPS (Apple Silicon GPU) is available")
+        print(f"   Device: {torch.device('mps')}")
+    else:
+        print("❌ MPS is not available")
+    
+    if torch.cuda.is_available():
+        print(f"✅ CUDA is available: {torch.cuda.get_device_name(0)}")
+    else:
+        print("❌ CUDA is not available")
+    
+    print(f"   Default device: {torch.device('mps' if torch.backends.mps.is_available() else 'cpu')}")
+    print("="*60 + "\n")
+    
     print(f"Loading IndexTTS-2 model from {model_dir}")
     
     tts = IndexTTS2(
@@ -108,6 +129,25 @@ def load_model(model_dir=None):
         use_cuda_kernel=False,
         use_deepspeed=False
     )
+    
+    # Try to detect which device the model is using
+    print("\n" + "="*60)
+    print("🚀 Model Device Status:")
+    print("="*60)
+    try:
+        # Check if the model has a device attribute or parameters
+        if hasattr(tts, 'device'):
+            print(f"   Model device: {tts.device}")
+        elif hasattr(tts, 'model') and hasattr(tts.model, 'device'):
+            print(f"   Model device: {tts.model.device}")
+        else:
+            # Try to get device from first parameter
+            for name, param in tts.named_parameters():
+                print(f"   Model parameters on: {param.device}")
+                break
+    except Exception as e:
+        print(f"   Could not detect model device: {e}")
+    print("="*60 + "\n")
     
     return tts
 
