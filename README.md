@@ -10,6 +10,7 @@ A simple, user-friendly Mac application for voice cloning using Bilibili's Index
 - ✍️ **Text-to-Speech**: Type any text and hear it in the cloned voice
 - 🎵 **Audio Playback**: Instantly play generated speech
 - ⚡ **Mac Optimized**: Uses MPS (Metal Performance Shaders) for fast inference on Apple Silicon
+- 🎛️ **Easy/Advanced Modes**: Simple interface or advanced controls for emotion, pacing, and generation parameters
 
 ## Requirements
 
@@ -131,19 +132,41 @@ python3.11 voice_clone_app.py
 
 ### Using the App
 
+#### Easy Mode (Default)
+
 1. **Load a Voice Sample**:
    - Click the drop zone area to browse and select an audio file (max 10 seconds)
    - Supported formats: WAV, MP3, M4A, AIFF, FLAC
-   - Or click "🎤 Record 5 seconds" to record directly from your Mac's microphone
+   - Or click "Record" to record 5 seconds directly from your Mac's microphone
 
 2. **Enter Text**:
    - Type the text you want to hear in the cloned voice
    - Supports Mandarin Chinese and other languages
 
-3. **Generate & Play**:
-   - Click "▶ Generate & Play"
+3. **Generate**:
+   - Click "Generate"
    - Wait for the loading animation (speech generation takes a few seconds)
    - The audio will play automatically when ready
+
+#### Advanced Mode
+
+Click the **"Advanced"** button in the top-right corner to access additional controls:
+
+**Emotion Vector Controls** (0-1 range):
+- Adjust 8 emotion dimensions: Happy, Angry, Sad, Scared, Disgusted, Depressed, Surprised, Calm
+- Fine-tune the emotional tone of the generated speech
+
+**Emotion Text** (Optional):
+- Check "Use emotion text instead of vector" to use natural language descriptions
+- Example: "Speaking slowly and clearly" or "A very slow, deep narration"
+- The model interprets these instructions to adjust prosody and pacing
+
+**Generation Controls**:
+- Enable "Use fixed length" to access:
+  - **Max Mel Tokens**: Control maximum generation length (default: model decides)
+  - **Length Penalty**: Affect speech length (positive = longer, negative = shorter)
+
+**Note**: Advanced mode makes the text input more compact and the interface scrollable for smaller screens. Click "Easy" to return to the simple interface.
 
 ## Supported Audio Formats
 
