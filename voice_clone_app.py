@@ -17,7 +17,9 @@ import numpy as np
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QTextEdit, QFileDialog, QMessageBox, QFrame, QDialog
+    QPushButton, QTextEdit, QFileDialog, QMessageBox, QFrame, QDialog,
+    QGroupBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox, QScrollArea,
+    QSizePolicy
 )
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QFont, QPainter, QColor, QPen, QDragEnterEvent, QDropEvent
@@ -123,7 +125,8 @@ class VoiceCloneApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Bilibili Voice Clone - Mac")
-        self.setFixedSize(600, 800)
+        self.setMinimumSize(600, 800)
+        self.resize(600, 900)
         
         # Variables
         self.tts = None
@@ -135,6 +138,7 @@ class VoiceCloneApp(QMainWindow):
         self.model_loaded = False
         self.loading_active = False
         self.loading_dots = 0
+        self.advanced_mode = False  # Start in easy mode
         
         # Connect signals
         self.model_loaded_signal.connect(self.on_model_loaded)
@@ -310,23 +314,61 @@ class VoiceCloneApp(QMainWindow):
     
     def create_widgets(self):
         """Create the GUI widgets"""
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        central_widget.setStyleSheet("background-color: white;")
+        # Create scroll area for content
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setStyleSheet("background-color: white;")
+        self.setCentralWidget(scroll_area)
+        
+        # Create content widget
+        content_widget = QWidget()
+        content_widget.setStyleSheet("background-color: white;")
+        scroll_area.setWidget(content_widget)
         
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(40, 40, 40, 40)
+        main_layout.setContentsMargins(30, 30, 30, 30)
         main_layout.setSpacing(0)
         
-        # Title
+        # Header with title and mode toggle
+        header_layout = QHBoxLayout()
+        
         title_label = QLabel("Voice Clone")
         title_label.setStyleSheet("font-size: 28px; color: #1a1a1a; font-weight: normal;")
-        main_layout.addWidget(title_label)
-        main_layout.addSpacing(40)
+        header_layout.addWidget(title_label)
+        
+        header_layout.addStretch()
+        
+        # Mode toggle button
+        self.mode_toggle_btn = QPushButton("Advanced")
+        self.mode_toggle_btn.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                color: #666666;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #f5f5f5;
+                color: #1a1a1a;
+            }
+            QPushButton:pressed {
+                background-color: #e8e8e8;
+            }
+        """)
+        self.mode_toggle_btn.clicked.connect(self.toggle_mode)
+        self.mode_toggle_btn.setFixedHeight(32)
+        header_layout.addWidget(self.mode_toggle_btn)
+        
+        main_layout.addLayout(header_layout)
+        main_layout.addSpacing(25)
         
         # Voice sample section
         voice_layout = QVBoxLayout()
-        voice_layout.setSpacing(12)
+        voice_layout.setSpacing(8)
         
         section_label = QLabel("Voice Sample")
         section_label.setStyleSheet("font-size: 11px; color: #666666;")
@@ -398,7 +440,7 @@ class VoiceCloneApp(QMainWindow):
                     self.callback()
         
         self.drop_zone = ClickableFrame(self, self.browse_audio_file)
-        self.drop_zone.setFixedHeight(120)
+        self.drop_zone.setFixedHeight(100)
         self.drop_zone.setStyleSheet("""
             QFrame {
                 background-color: white;
@@ -483,7 +525,7 @@ class VoiceCloneApp(QMainWindow):
         self.drop_zone.setLayout(drop_layout)
         
         voice_layout.addWidget(self.drop_zone)
-        voice_layout.addSpacing(20)
+        voice_layout.addSpacing(12)
         
         # Record button
         self.record_button = QPushButton("Record")
@@ -493,11 +535,11 @@ class VoiceCloneApp(QMainWindow):
         voice_layout.addWidget(self.record_button)
         
         main_layout.addLayout(voice_layout)
-        main_layout.addSpacing(30)
+        main_layout.addSpacing(20)
         
         # Text input section
         text_layout = QVBoxLayout()
-        text_layout.setSpacing(12)
+        text_layout.setSpacing(8)
         
         text_label = QLabel("Text to Speak")
         text_label.setStyleSheet("font-size: 11px; color: #666666;")
@@ -517,27 +559,189 @@ class VoiceCloneApp(QMainWindow):
                 border: 1px solid #999999;
             }
         """)
-        self.text_input.setFixedHeight(150)
+        self.text_input.setFixedHeight(120)  # Will be adjusted by mode
         text_layout.addWidget(self.text_input)
         
         main_layout.addLayout(text_layout)
-        main_layout.addSpacing(30)
+        main_layout.addSpacing(15)
         
-        # Generate button (wider)
-        self.play_button = QPushButton("Generate & Play")
+        # Advanced settings section (hidden in easy mode)
+        self.advanced_section = QWidget()
+        advanced_layout = QVBoxLayout()
+        advanced_layout.setContentsMargins(0, 0, 0, 0)
+        advanced_layout.setSpacing(8)
+        
+        # Emotion Vector Section
+        emo_vec_label = QLabel("emotion vector")
+        emo_vec_label.setStyleSheet("font-size: 9px; color: #999999; margin-bottom: 2px;")
+        advanced_layout.addWidget(emo_vec_label)
+        
+        # Create 8 spin boxes for emotion vector (all in one row)
+        self.emo_vec_spinboxes = []
+        emo_labels = ["Happy", "Angry", "Sad", "Scared", "Disgusted", "Depressed", "Surprised", "Calm"]
+        
+        emo_row_layout = QHBoxLayout()
+        emo_row_layout.setSpacing(6)
+        
+        for i in range(8):
+            col_layout = QVBoxLayout()
+            col_layout.setSpacing(2)
+            
+            label_widget = QLabel(emo_labels[i])
+            label_widget.setStyleSheet("font-size: 9px; color: #666666;")
+            label_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            col_layout.addWidget(label_widget)
+            
+            spinbox = QDoubleSpinBox()
+            spinbox.setRange(0.0, 1.0)
+            spinbox.setSingleStep(0.1)
+            spinbox.setValue(0.0)
+            spinbox.setDecimals(1)
+            spinbox.setFixedWidth(60)
+            spinbox.setFixedHeight(28)
+            spinbox.setStyleSheet("""
+                QDoubleSpinBox {
+                    background-color: white;
+                    border: 1px solid #e0e0e0;
+                    border-radius: 3px;
+                    padding: 2px;
+                    font-size: 10px;
+                }
+                QDoubleSpinBox:focus {
+                    border: 1px solid #999999;
+                }
+            """)
+            spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.emo_vec_spinboxes.append(spinbox)
+            col_layout.addWidget(spinbox)
+            
+            emo_row_layout.addLayout(col_layout)
+        
+        emo_row_layout.addStretch()
+        advanced_layout.addLayout(emo_row_layout)
+        
+        advanced_layout.addSpacing(8)
+        
+        # Emotion Text Section
+        emo_text_label = QLabel("Emotion Text (Optional)")
+        emo_text_label.setStyleSheet("font-size: 11px; color: #666666;")
+        advanced_layout.addWidget(emo_text_label)
+        
+        self.use_emo_text_checkbox = QCheckBox("Use emotion text instead of vector")
+        self.use_emo_text_checkbox.setStyleSheet("font-size: 10px; color: #666666;")
+        self.use_emo_text_checkbox.stateChanged.connect(self.on_emotion_text_toggled)
+        advanced_layout.addWidget(self.use_emo_text_checkbox)
+        
+        self.emo_text_input = QLineEdit()
+        self.emo_text_input.setPlaceholderText('e.g., "Speaking slowly and clearly"')
+        self.emo_text_input.setStyleSheet("""
+            QLineEdit {
+                background-color: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 3px;
+                padding: 6px;
+                font-size: 10px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #999999;
+            }
+        """)
+        advanced_layout.addWidget(self.emo_text_input)
+        advanced_layout.addSpacing(8)
+        
+        # Generation Controls
+        gen_controls_label = QLabel("generation controls")
+        gen_controls_label.setStyleSheet("font-size: 9px; color: #999999; margin-bottom: 2px;")
+        advanced_layout.addWidget(gen_controls_label)
+        
+        self.use_fixed_length_checkbox = QCheckBox("Use fixed length")
+        self.use_fixed_length_checkbox.setStyleSheet("font-size: 10px; color: #666666;")
+        self.use_fixed_length_checkbox.setChecked(False)
+        self.use_fixed_length_checkbox.stateChanged.connect(self.on_fixed_length_toggled)
+        advanced_layout.addWidget(self.use_fixed_length_checkbox)
+        
+        gen_row = QHBoxLayout()
+        gen_row.setSpacing(15)
+        
+        # Max Mel Tokens
+        max_mel_col = QVBoxLayout()
+        max_mel_col.setSpacing(2)
+        max_mel_label = QLabel("Max Mel Tokens")
+        max_mel_label.setStyleSheet("font-size: 9px; color: #666666;")
+        max_mel_col.addWidget(max_mel_label)
+        
+        self.max_mel_tokens_spinbox = QSpinBox()
+        self.max_mel_tokens_spinbox.setRange(50, 5000)
+        self.max_mel_tokens_spinbox.setValue(1500)
+        self.max_mel_tokens_spinbox.setSingleStep(50)
+        self.max_mel_tokens_spinbox.setFixedWidth(100)
+        self.max_mel_tokens_spinbox.setFixedHeight(28)
+        self.max_mel_tokens_spinbox.setEnabled(False)  # Disabled by default
+        self.max_mel_tokens_spinbox.setStyleSheet("""
+            QSpinBox {
+                background-color: #f5f5f5;
+                border: 1px solid #e0e0e0;
+                border-radius: 3px;
+                padding: 4px;
+                font-size: 10px;
+                color: #999999;
+            }
+        """)
+        max_mel_col.addWidget(self.max_mel_tokens_spinbox)
+        gen_row.addLayout(max_mel_col)
+        
+        # Length Penalty
+        length_penalty_col = QVBoxLayout()
+        length_penalty_col.setSpacing(2)
+        length_penalty_label = QLabel("Length Penalty")
+        length_penalty_label.setStyleSheet("font-size: 9px; color: #666666;")
+        length_penalty_col.addWidget(length_penalty_label)
+        
+        self.length_penalty_spinbox = QDoubleSpinBox()
+        self.length_penalty_spinbox.setRange(-2.0, 2.0)
+        self.length_penalty_spinbox.setValue(0.0)
+        self.length_penalty_spinbox.setSingleStep(0.1)
+        self.length_penalty_spinbox.setDecimals(1)
+        self.length_penalty_spinbox.setFixedWidth(80)
+        self.length_penalty_spinbox.setFixedHeight(28)
+        self.length_penalty_spinbox.setEnabled(False)  # Disabled by default
+        self.length_penalty_spinbox.setStyleSheet("""
+            QDoubleSpinBox {
+                background-color: #f5f5f5;
+                border: 1px solid #e0e0e0;
+                border-radius: 3px;
+                padding: 4px;
+                font-size: 10px;
+                color: #999999;
+            }
+        """)
+        self.length_penalty_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        length_penalty_col.addWidget(self.length_penalty_spinbox)
+        gen_row.addLayout(length_penalty_col)
+        
+        gen_row.addStretch()
+        advanced_layout.addLayout(gen_row)
+        
+        self.advanced_section.setLayout(advanced_layout)
+        self.advanced_section.hide()  # Hidden in easy mode by default
+        main_layout.addWidget(self.advanced_section)
+        main_layout.addSpacing(15)
+        
+        # Generate button
+        self.play_button = QPushButton("Generate")
         self.play_button.setStyleSheet(self.get_button_style())
         self.play_button.setEnabled(False)
-        self.play_button.setFixedHeight(44)
+        self.play_button.setFixedHeight(40)
         self.play_button.clicked.connect(self.generate_and_play)
         main_layout.addWidget(self.play_button)
-        main_layout.addSpacing(10)
+        main_layout.addSpacing(8)
         
         # Loading label (below button)
         self.loading_label = QLabel("")
         self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.loading_label.setStyleSheet("font-size: 11px; color: #999999;")
         main_layout.addWidget(self.loading_label)
-        main_layout.addSpacing(20)
+        main_layout.addSpacing(12)
         
         # Generated audio section (hidden initially) - grey tile style
         self.generated_audio_frame = QFrame()
@@ -583,7 +787,7 @@ class VoiceCloneApp(QMainWindow):
         self.generated_audio_frame.hide()
         
         main_layout.addWidget(self.generated_audio_frame)
-        main_layout.addSpacing(20)
+        main_layout.addSpacing(12)
         
         # Status bar
         self.status_label = QLabel("Initializing...")
@@ -592,7 +796,7 @@ class VoiceCloneApp(QMainWindow):
         
         main_layout.addStretch()
         
-        central_widget.setLayout(main_layout)
+        content_widget.setLayout(main_layout)
     
     def get_button_style(self):
         """Get modern button style"""
@@ -672,6 +876,118 @@ class VoiceCloneApp(QMainWindow):
         self.file_info_frame.hide()
         self.drop_label.show()
         self.status_label.setText("File removed")
+    
+    def toggle_mode(self):
+        """Toggle between Easy and Advanced mode"""
+        self.advanced_mode = not self.advanced_mode
+        
+        if self.advanced_mode:
+            # Switch to Advanced mode
+            self.mode_toggle_btn.setText("Easy")
+            if hasattr(self, 'advanced_section'):
+                self.advanced_section.show()
+            # Make text box smaller in advanced mode
+            if hasattr(self, 'text_input'):
+                self.text_input.setFixedHeight(80)
+        else:
+            # Switch to Easy mode
+            self.mode_toggle_btn.setText("Advanced")
+            if hasattr(self, 'advanced_section'):
+                self.advanced_section.hide()
+            # Restore text box height in easy mode
+            if hasattr(self, 'text_input'):
+                self.text_input.setFixedHeight(120)
+    
+    def on_emotion_text_toggled(self, state):
+        """Handle emotion text checkbox toggle - disable/enable emotion vector controls"""
+        if hasattr(self, 'emo_vec_spinboxes'):
+            # If checkbox is checked (using emotion text), disable emotion vector spinboxes
+            enabled = (state == 0)  # 0 = unchecked, 2 = checked
+            for spinbox in self.emo_vec_spinboxes:
+                spinbox.setEnabled(enabled)
+                # Update styling to show disabled state
+                if enabled:
+                    spinbox.setStyleSheet("""
+                        QDoubleSpinBox {
+                            background-color: white;
+                            border: 1px solid #e0e0e0;
+                            border-radius: 3px;
+                            padding: 2px;
+                            font-size: 10px;
+                        }
+                        QDoubleSpinBox:focus {
+                            border: 1px solid #999999;
+                        }
+                    """)
+                else:
+                    spinbox.setStyleSheet("""
+                        QDoubleSpinBox {
+                            background-color: #f5f5f5;
+                            border: 1px solid #e0e0e0;
+                            border-radius: 3px;
+                            padding: 2px;
+                            font-size: 10px;
+                            color: #999999;
+                        }
+                    """)
+    
+    def on_fixed_length_toggled(self, state):
+        """Handle fixed length checkbox toggle - disable/enable generation controls"""
+        enabled = (state == 2)  # 2 = checked, 0 = unchecked
+        
+        if hasattr(self, 'max_mel_tokens_spinbox'):
+            self.max_mel_tokens_spinbox.setEnabled(enabled)
+            if enabled:
+                self.max_mel_tokens_spinbox.setStyleSheet("""
+                    QSpinBox {
+                        background-color: white;
+                        border: 1px solid #e0e0e0;
+                        border-radius: 3px;
+                        padding: 4px;
+                        font-size: 10px;
+                    }
+                    QSpinBox:focus {
+                        border: 1px solid #999999;
+                    }
+                """)
+            else:
+                self.max_mel_tokens_spinbox.setStyleSheet("""
+                    QSpinBox {
+                        background-color: #f5f5f5;
+                        border: 1px solid #e0e0e0;
+                        border-radius: 3px;
+                        padding: 4px;
+                        font-size: 10px;
+                        color: #999999;
+                    }
+                """)
+        
+        if hasattr(self, 'length_penalty_spinbox'):
+            self.length_penalty_spinbox.setEnabled(enabled)
+            if enabled:
+                self.length_penalty_spinbox.setStyleSheet("""
+                    QDoubleSpinBox {
+                        background-color: white;
+                        border: 1px solid #e0e0e0;
+                        border-radius: 3px;
+                        padding: 4px;
+                        font-size: 10px;
+                    }
+                    QDoubleSpinBox:focus {
+                        border: 1px solid #999999;
+                    }
+                """)
+            else:
+                self.length_penalty_spinbox.setStyleSheet("""
+                    QDoubleSpinBox {
+                        background-color: #f5f5f5;
+                        border: 1px solid #e0e0e0;
+                        border-radius: 3px;
+                        padding: 4px;
+                        font-size: 10px;
+                        color: #999999;
+                    }
+                """)
     
     def setAcceptDrops(self, enabled):
         """Override to enable drag and drop on window"""
@@ -902,12 +1218,49 @@ class VoiceCloneApp(QMainWindow):
                 # Generate unique output filename
                 output_path = os.path.join(output_dir, f"output_{int(time.time())}.wav")
                 
+                # Collect advanced parameters (None means use model defaults)
+                emo_vector = None
+                use_emo_text = False
+                emo_text = None
+                max_mel_tokens = None
+                length_penalty = None
+                
+                # Only collect parameters if in advanced mode
+                if self.advanced_mode and hasattr(self, 'advanced_section') and self.advanced_section.isVisible():
+                    # Get emotion vector values (only if any are non-zero)
+                    if hasattr(self, 'emo_vec_spinboxes') and len(self.emo_vec_spinboxes) == 8:
+                        emo_vector = [spinbox.value() for spinbox in self.emo_vec_spinboxes]
+                        # Only use if not all zeros (to distinguish from default)
+                        if all(v == 0.0 for v in emo_vector):
+                            emo_vector = None
+                    
+                    # Get emotion text settings (only if checkbox is checked)
+                    if hasattr(self, 'use_emo_text_checkbox') and self.use_emo_text_checkbox.isChecked():
+                        use_emo_text = True
+                        if hasattr(self, 'emo_text_input'):
+                            emo_text = self.emo_text_input.text().strip()
+                            if not emo_text:
+                                emo_text = None
+                    
+                    # Get max mel tokens and length penalty (only if fixed length is enabled)
+                    if hasattr(self, 'use_fixed_length_checkbox') and self.use_fixed_length_checkbox.isChecked():
+                        if hasattr(self, 'max_mel_tokens_spinbox'):
+                            max_mel_tokens = self.max_mel_tokens_spinbox.value()
+                        
+                        if hasattr(self, 'length_penalty_spinbox'):
+                            length_penalty = self.length_penalty_spinbox.value()
+                
                 # Generate audio using model interface
                 generate_speech(
                     self.tts,
                     self.voice_sample_path,
                     text,
-                    output_path
+                    output_path,
+                    emo_vector=emo_vector,
+                    use_emo_text=use_emo_text,
+                    emo_text=emo_text,
+                    max_mel_tokens=max_mel_tokens,
+                    length_penalty=length_penalty
                 )
                 
                 # Emit signal - handler will update UI on main thread

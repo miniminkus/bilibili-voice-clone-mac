@@ -262,7 +262,9 @@ def validate_audio_file(filepath, max_duration=10.0):
     return filepath
 
 
-def generate_speech(model, voice_sample_path, text, output_path):
+def generate_speech(model, voice_sample_path, text, output_path,
+                    emo_vector=None, use_emo_text=False, emo_text=None, 
+                    max_mel_tokens=None, length_penalty=None):
     """
     Generate speech from text using a voice sample.
     
@@ -271,14 +273,31 @@ def generate_speech(model, voice_sample_path, text, output_path):
         voice_sample_path (str): Path to voice sample audio file (max 10 seconds)
         text (str): Text to speak
         output_path (str): Path where output audio will be saved
+        emo_vector (list, optional): 8-dimensional emotion vector [Happy, Angry, Sad, Scared, Disgusted, Depressed, Surprised, Calm]
+        use_emo_text (bool, optional): Whether to use emotion text instead of vector
+        emo_text (str, optional): Emotion description text (e.g., "Speaking slowly and clearly")
+        max_mel_tokens (int, optional): Maximum mel tokens for generation (controls max duration). If None, uses model default.
+        length_penalty (float, optional): Length penalty for generation (affects speech length). If None, uses model default.
     
     Raises:
         Exception: If generation fails
     """
+    generation_kwargs = {}
+    
+    # Only add generation kwargs if they're explicitly set
+    if max_mel_tokens is not None:
+        generation_kwargs["max_mel_tokens"] = int(max_mel_tokens)
+    if length_penalty is not None:
+        generation_kwargs["length_penalty"] = float(length_penalty)
+    
     model.infer(
         spk_audio_prompt=voice_sample_path,
         text=text,
         output_path=output_path,
-        verbose=False
+        emo_vector=emo_vector,
+        use_emo_text=use_emo_text,
+        emo_text=emo_text,
+        verbose=False,
+        **generation_kwargs
     )
 
